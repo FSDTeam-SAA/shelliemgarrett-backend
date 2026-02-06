@@ -16,6 +16,8 @@ import errorHandler from './core/middlewares/errorMiddleware.js';
 import notFound from './core/middlewares/notFound.js';
 import { globalLimiter } from './lib/limit.js';
 import appRouter from './core/app/appRouter.js';
+//import bodyParser from 'body-parser';
+//import { stripeWebhook } from './entities/payment/payment.controller.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,6 +40,8 @@ app.use(mongoSanitize());
 
 // Set up logging middleware
 app.use(morgan('combined'));
+
+//app.post('/api/v1/payment/webhook',  bodyParser.raw({type: "*/*"}), stripeWebhook);
 
 // Set up body parsing middleware
 app.use(express.json({ limit: '10000kb' }));
