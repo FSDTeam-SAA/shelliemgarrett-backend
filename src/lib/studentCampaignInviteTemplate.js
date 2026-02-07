@@ -17,23 +17,31 @@ const studentCampaignInviteTemplate = ({
       <p>Hello <strong>${name}</strong>,</p>
 
       <p>
-        You have been successfully added as a participant in the fundraising campaign.
-        You can now log in to your account and start sharing your personal donation link.
+        You have been added to a fundraising campaign.
+        Below is your personal fundraising link.
       </p>
 
+      ${
+        password
+          ? `
       <hr style="margin:20px 0;" />
-
       <h3 style="margin-bottom:10px;">🔐 Your Login Credentials</h3>
       <p><strong>Email:</strong> ${email}</p>
       <p><strong>Password:</strong> ${password}</p>
+      `
+          : `
+      <hr style="margin:20px 0;" />
+      <p style="color:#16a34a;">
+        You can use your existing account credentials to log in.
+      </p>
+      `
+      }
+
       <p><strong>Student ID:</strong> ${studentId}</p>
 
       <hr style="margin:20px 0;" />
 
       <h3 style="margin-bottom:10px;">💖 Your Fundraising Link</h3>
-      <p>
-        Share this link with friends and family so they can support your campaign:
-      </p>
 
       <p>
         <a 
@@ -58,9 +66,7 @@ const studentCampaignInviteTemplate = ({
 
       <hr style="margin:20px 0;" />
 
-      <p>
-        Start sharing and make an impact 🚀
-      </p>
+      <p>Start sharing and make an impact 🚀</p>
 
       <p>
         Best Regards,<br/>

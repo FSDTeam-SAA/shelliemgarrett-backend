@@ -1,9 +1,15 @@
+import Stripe from "stripe";
+import Donation from "./donation.model.js";
+import Campaign from "../campaign/campaign.model.js";
+
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
   let event;
+
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
@@ -11,6 +17,7 @@ export const stripeWebhook = async (req, res) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
+    console.error("❌ Webhook signature verification failed.");
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -18,58 +25,55 @@ export const stripeWebhook = async (req, res) => {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
 
-      const userId = session.metadata.userId;
-      const planId = session.metadata.planId;
-      const billingCycle = session.metadata.billingCycle;
+      const donationId = session.metadata.donationId;
 
-      const plan = await Plan.findById(planId);
-      if (!plan) return res.status(400).send("Plan not found");
-
-      const user = await User.findById(userId);
-      if (!user) return res.status(400).send("User not found");
-
-      /**
-       * ----------------------------------
-       * CALCULATE SUBSCRIPTION DATES
-       * ----------------------------------
-       */
-      const startDate = new Date();
-      let endDate = null;
-
-      if (billingCycle === "monthly") {
-        endDate = new Date(startDate);
-        endDate.setMonth(endDate.getMonth() + 1);
+      const donation = await Donation.findById(donationId);
+      if (!donation) {
+        console.error("Donation not found");
+        return res.status(404).send("Donation not found");
       }
 
-      if (billingCycle === "yearly") {
-        endDate = new Date(startDate);
-        endDate.setFullYear(endDate.getFullYear() + 1);
+      if (donation.paymentStatus === "paid") {
+        return res.status(200).json({ received: true });
       }
 
-      /**
-       * ----------------------------------
-       * UPDATE USER SUBSCRIPTION (CRITICAL)
-       * ----------------------------------
-       */
-      user.subscription = {
-        planId: plan._id,
-        startDate,
-        endDate
-      };
+      donation.paymentStatus = "paid";
+      donation.stripePaymentIntentId = session.payment_intent;
+      await donation.save();
 
-      user.subscriptionUsage = {
-        returnOrdersUsed: 0 // 🔥 RESET USAGE
-      };
+      await Campaign.findByIdAndUpdate(
+        donation.campaignId,
+        { $inc: { totalRaised: donation.amount } }
+      );
 
-      user.hasActiveSubscription = true;
-      user.subscriptionExpireDate = endDate;
+      await Campaign.updateOne(
+        {
+          _id: donation.campaignId,
+          "students.studentId": donation.studentId
+        },
+        {
+          $inc: { "students.$.raisedAmount": donation.amount }
+        }
+      );
 
-      await user.save();
+      console.log("✅ Donation processed successfully");
     }
 
-    res.status(200).send("Webhook received");
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object;
+      const donationId = session.metadata.donationId;
+
+      await Donation.findByIdAndUpdate(donationId, {
+        paymentStatus: "failed"
+      });
+
+      console.log("❌ Donation marked as failed");
+    }
+
+    res.status(200).json({ received: true });
+
   } catch (error) {
-    console.error("Stripe webhook error:", error);
-    res.status(500).send("Webhook processing failed");
+    console.error("Webhook processing error:", error);
+    res.status(500).json({ error: "Webhook processing failed" });
   }
 };

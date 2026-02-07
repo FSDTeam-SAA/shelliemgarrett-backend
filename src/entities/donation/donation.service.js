@@ -1,6 +1,6 @@
 import Stripe from "stripe";
-import Campaign from "../campaign/campaign.model";
-import Donation from "./donation.model";
+import Campaign from "../campaign/campaign.model.js";
+import Donation from "./donation.model.js";
 
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -11,6 +11,10 @@ export const createDonationSessionService = async ({
   donor,
   amount
 }) => {
+  if (!campaignId || !studentId || !donor || !amount) {
+    throw new Error("Missing required fields");
+  }
+
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error("Campaign not found");
 
@@ -39,19 +43,18 @@ export const createDonationSessionService = async ({
         price_data: {
           currency: "usd",
           product_data: {
-            name: `Donation for ${campaign.name}`
+            name: `Donation for ${campaign.name}`,
+            description: `Supporting student ${studentId}`
           },
-          unit_amount: amount * 100
+          unit_amount: Math.round(amount * 100)
         },
         quantity: 1
       }
     ],
-    success_url: `${process.env.FRONTEND_URL}/success`,
+    success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     metadata: {
-      donationId: donation._id.toString(),
-      campaignId,
-      studentId
+      donationId: donation._id.toString()
     }
   });
 
@@ -60,3 +63,4 @@ export const createDonationSessionService = async ({
 
   return { url: session.url };
 };
+
