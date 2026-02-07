@@ -1,5 +1,5 @@
-import { generateResponse } from "../../lib/responseFormate";
-import { createDonationSessionService } from "./donation.service";
+import { generateResponse } from "../../lib/responseFormate.js";
+import { createDonationSessionService } from "./donation.service.js";
 
 
 export const createDonationSessionController = async (req, res, next) => {
