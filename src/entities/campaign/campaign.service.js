@@ -4,6 +4,7 @@ import { cloudinaryUpload } from "../../lib/cloudinaryUpload.js";
 import Campaign from "./campaign.model.js";
 import User from "../auth/auth.model.js";
 import sendEmail from "../../lib/sendEmail.js";
+import studentCampaignInviteTemplate from "../../lib/studentCampaignInviteTemplate.js";
 
 
 const generatePassword = (length = 8) => {
@@ -35,11 +36,7 @@ const generateUniqueStudentId = (existingIds) => {
 };
 
 
-export const createCampaignService = async ({
-  name,
-  description,
-  files
-}) => {
+export const createCampaignService = async ({ name, description, files }) => {
   if (!name?.trim() || !description?.trim()) {
     throw new Error("Name and description are required");
   }
@@ -49,16 +46,14 @@ export const createCampaignService = async ({
   const studentIdSet = new Set();
   const emailSet = new Set();
 
-  /* =============================
-     1️⃣ Upload Media
-  ============================== */
+  // store passwords for email sending later
+  const newUsersForEmail = [];
+
   if (files?.media?.length) {
     for (const file of files.media) {
       const result = await cloudinaryUpload(
         file.path,
-        `campaign_${Date.now()}_${Math.random()
-          .toString(36)
-          .substring(2, 8)}`,
+        `campaign_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
         "campaigns"
       );
 
@@ -71,9 +66,6 @@ export const createCampaignService = async ({
     }
   }
 
-  /* =============================
-     2️⃣ Process Student File
-  ============================== */
   if (files?.studentFile?.length) {
     const filePath = files.studentFile[0].path;
 
@@ -81,15 +73,11 @@ export const createCampaignService = async ({
       const workbook = xlsx.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
-
       const jsonData = xlsx.utils.sheet_to_json(sheet);
 
       for (const row of jsonData) {
-        const email =
-          row.email || row.Email || row.EMAIL;
-
-        const nameValue =
-          row.name || row.Name || row.NAME;
+        const email = row.email || row.Email || row.EMAIL;
+        const nameValue = row.name || row.Name || row.NAME;
 
         if (!email || !nameValue) continue;
 
@@ -110,11 +98,7 @@ export const createCampaignService = async ({
         const studentId = generateUniqueStudentId(studentIdSet);
         studentIdSet.add(studentId);
 
-        /* =============================
-           🔥 Create User If Not Exists
-        ============================== */
         let user = await User.findOne({ email: normalizedEmail });
-
         let plainPassword = null;
 
         if (!user) {
@@ -136,33 +120,13 @@ export const createCampaignService = async ({
           others
         });
 
-        /* =============================
-           📧 Send Email (Only if new user)
-        ============================== */
+        // save for email sending later
         if (plainPassword) {
-          const htmlTemplate = `
-            <div style="font-family: Arial; padding:20px;">
-              <h2>Welcome to the Fundraising Campaign 🎉</h2>
-              <p>Hello <strong>${nameValue}</strong>,</p>
-              <p>You have been added to a fundraising campaign.</p>
-
-              <p><strong>Your Login Credentials:</strong></p>
-              <ul>
-                <li>Email: ${normalizedEmail}</li>
-                <li>Password: ${plainPassword}</li>
-                <li>Student ID: ${studentId}</li>
-              </ul>
-
-              <p>Please login and start sharing your fundraising link.</p>
-
-              <p>Best Regards,<br/>Fundraising Team</p>
-            </div>
-          `;
-
-          await sendEmail({
-            to: normalizedEmail,
-            subject: "Your Fundraising Account Details",
-            html: htmlTemplate
+          newUsersForEmail.push({
+            name: String(nameValue).trim(),
+            email: normalizedEmail,
+            password: plainPassword,
+            studentId
           });
         }
       }
@@ -173,9 +137,6 @@ export const createCampaignService = async ({
     }
   }
 
-  /* =============================
-     3️⃣ Create Campaign
-  ============================== */
   const campaign = await Campaign.create({
     name: name.trim(),
     description: description.trim(),
@@ -183,6 +144,26 @@ export const createCampaignService = async ({
     students
   });
 
+  for (const student of newUsersForEmail) {
+    const donationLink = `${process.env.FRONTEND_URL}/donate/${campaign._id}/${student.studentId}`;
+
+    const htmlTemplate = studentCampaignInviteTemplate({
+      name: student.name,
+      email: student.email,
+      password: student.password,
+      studentId: student.studentId,
+      campaignName: campaign.name,
+      donationLink
+    });
+
+    await sendEmail({
+      to: student.email,
+      subject: "Your Fundraising Account Details",
+      html: htmlTemplate
+    });
+  }
+
   return campaign;
 };
+
 
