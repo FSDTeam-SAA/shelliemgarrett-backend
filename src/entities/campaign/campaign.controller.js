@@ -1,14 +1,22 @@
 import { generateResponse } from "../../lib/responseFormate.js";
-import { createCampaignService, getAllCampaignsService, getCampaignByIdService } from "./campaign.service.js";
+import {
+  createCampaignService,
+  getAllCampaignsService,
+  getCampaignByIdService,
+  updateCampaignService,
+  deleteCampaignService,
+} from "./campaign.service.js";
 
 
 export const createCampaignController = async (req, res, next) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, raiseGoal } = req.body;
 
     const data = await createCampaignService({
       name,
       description,
+      raiseGoal,
+      createdBy: req.user?._id,
       files: req.files
     });
 
@@ -18,6 +26,49 @@ export const createCampaignController = async (req, res, next) => {
       true,
       "Campaign created successfully",
       data
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateCampaignController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, description, raiseGoal } = req.body;
+
+    const data = await updateCampaignService({
+      campaignId: id,
+      name,
+      description,
+      raiseGoal,
+      files: req.files,
+    });
+
+    return generateResponse(
+      res,
+      200,
+      true,
+      "Campaign updated successfully",
+      data
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCampaignController = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    await deleteCampaignService(id);
+
+    return generateResponse(
+      res,
+      200,
+      true,
+      "Campaign deleted successfully",
+      null
     );
   } catch (error) {
     next(error);
