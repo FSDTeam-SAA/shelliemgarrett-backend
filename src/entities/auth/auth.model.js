@@ -33,6 +33,14 @@ const UserSchema = new mongoose.Schema(
       enum: [RoleType.USER, RoleType.ADMIN],
     },
 
+       // Student ID for campaign tracking
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      default: null
+    },
+
     stripeAccountId: { type: String, default: null },
 
     bio: { type: String, default: '' },
@@ -79,6 +87,11 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
+// Create index on studentId for faster queries
+UserSchema.index({ studentId: 1 });
+
 
 
 // Hashing password

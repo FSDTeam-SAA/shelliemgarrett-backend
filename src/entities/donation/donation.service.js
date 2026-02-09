@@ -64,3 +64,32 @@ export const createDonationSessionService = async ({
   return { url: session.url };
 };
 
+export const getAllDonationsService = async ({ page = 1, limit = 10 }) => {
+  page = Number(page) || 1;
+  limit = Number(limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const [donations, total] = await Promise.all([
+    Donation.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "campaignId",
+        select: "name description totalRaised raiseGoal createdBy",
+        populate: { path: "createdBy", select: "name email role" },
+      })
+      .lean(),
+    Donation.countDocuments(),
+  ]);
+
+  return {
+    donations,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
