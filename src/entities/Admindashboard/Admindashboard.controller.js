@@ -3,6 +3,7 @@ import {
   getAllUsersWithCampaignsService,
   getUserByStudentIdService,
   getDashboardOverviewService,
+  getAdminDashboardStatsService,
   updateUserCampaignInfoService,
   deleteUserService,
 } from "./Admindashboard.service.js";
@@ -69,6 +70,26 @@ export const getDashboardOverviewController = async (req, res, next) => {
       200,
       true,
       "Dashboard overview fetched successfully",
+      data
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/dashboard/stats
+ * Get aggregated counts and top donors
+ */
+export const getAdminDashboardStatsController = async (req, res, next) => {
+  try {
+    const data = await getAdminDashboardStatsService();
+
+    return generateResponse(
+      res,
+      200,
+      true,
+      "Admin dashboard stats fetched successfully",
       data
     );
   } catch (error) {

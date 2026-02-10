@@ -7,6 +7,7 @@ import {
   getAllUsersWithCampaignsController,
   getUserByStudentIdController,
   getDashboardOverviewController,
+  getAdminDashboardStatsController,
   updateUserController,
   deleteUserController,
 } from "./Admindashboard.controller.js";
@@ -21,6 +22,13 @@ router.get(
   getDashboardOverviewController
 );
 
+router.get(
+  "/stats",
+  verifyToken,
+  adminMiddleware,
+  getAdminDashboardStatsController
+);
+
 
 router.get(
   "/studentlist",
@@ -31,7 +39,7 @@ router.get(
 
 
 router.get(
-  "/student/:studentId",
+  "/studentlist/:studentId",
   verifyToken,
   adminMiddleware,
   getUserByStudentIdController
@@ -39,7 +47,7 @@ router.get(
 
 
 router.put(
-  "/student/:id",
+  "/studentlist/:id",
   verifyToken,
   adminMiddleware,
   updateUserController

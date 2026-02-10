@@ -4,6 +4,71 @@ import Campaign from "../campaign/campaign.model.js";
 import Donation from "../donation/donation.model.js";
 
 /**
+ * Get high-level admin dashboard metrics and top donors
+ * @returns {Object} - Totals and top donors list
+ */
+export const getAdminDashboardStatsService = async () => {
+  const [campaignsCount, donationTotalsAgg, topDonors, guestUsers] =
+    await Promise.all([
+      Campaign.countDocuments(),
+      Donation.aggregate([
+        { $match: { paymentStatus: "paid" } },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: "$amount" },
+            totalDonations: { $sum: 1 },
+          },
+        },
+      ]),
+      Donation.aggregate([
+        { $match: { paymentStatus: "paid" } },
+        {
+          $group: {
+            _id: "$donor.email",
+            name: { $first: "$donor.name" },
+            totalAmount: { $sum: "$amount" },
+            donationsCount: { $sum: 1 },
+            lastDonatedAt: { $max: "$createdAt" },
+          },
+        },
+        { $sort: { totalAmount: -1 } },
+        { $limit: 3 },
+      ]),
+      User.countDocuments({
+        role: "USER",
+        $or: [
+          { studentId: { $exists: false } },
+          { studentId: null },
+          { studentId: "" },
+        ],
+      }),
+    ]);
+
+  const donationTotals = donationTotalsAgg[0] || {
+    totalAmount: 0,
+    totalDonations: 0,
+  };
+
+  return {
+    totals: {
+      campaigns: campaignsCount,
+      donors: donationTotals.totalDonations,
+      donations: donationTotals.totalDonations,
+      donationAmount: donationTotals.totalAmount,
+      guestUsers,
+    },
+    topDonors: topDonors.map((donor) => ({
+      email: donor._id,
+      name: donor.name || donor._id,
+      totalAmount: donor.totalAmount,
+      donationsCount: donor.donationsCount,
+      lastDonatedAt: donor.lastDonatedAt,
+    })),
+  };
+};
+
+/**
  * Get all users with their campaign statistics
  * @param {Object} params - Query parameters
  * @param {Number} params.page - Page number
@@ -286,7 +351,7 @@ export const updateUserCampaignInfoService = async (userId, updateData) => {
     throw new Error("Invalid user ID");
   }
 
-  const allowedUpdates = ["name", "email", "bio", "profileImage"];
+  const allowedUpdates = ["name", "email", "bio", "profileImage", "isSuspended"];
   const updates = {};
 
   Object.keys(updateData).forEach((key) => {
