@@ -83,7 +83,8 @@ const UserSchema = new mongoose.Schema(
     hasActiveSubscription: { type: Boolean, default: false },
     subscriptionExpireDate: { type: Date, default: null },
     blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    language: { type: String, default: 'en' }
+    language: { type: String, default: 'en' },
+    isSuspended: { type: Boolean, default: false }
   },
   { timestamps: true }
 );
