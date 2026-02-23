@@ -6,6 +6,7 @@ import {
   getAdminDashboardStatsService,
   updateUserCampaignInfoService,
   deleteUserService,
+  getDonationsByYearRangeService,
 } from "./Admindashboard.service.js";
 
 /**
@@ -90,6 +91,28 @@ export const getAdminDashboardStatsController = async (req, res, next) => {
       200,
       true,
       "Admin dashboard stats fetched successfully",
+      data
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/dashboard/donations
+ * Get paid donation totals per month across a year range
+ */
+export const getDonationsByYearRangeController = async (req, res, next) => {
+  try {
+    const { startYear, endYear } = req.query;
+
+    const data = await getDonationsByYearRangeService(startYear, endYear);
+
+    return generateResponse(
+      res,
+      200,
+      true,
+      "Donation totals by month fetched successfully",
       data
     );
   } catch (error) {
