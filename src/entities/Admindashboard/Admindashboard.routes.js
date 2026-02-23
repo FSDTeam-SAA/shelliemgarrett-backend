@@ -8,6 +8,7 @@ import {
   getUserByStudentIdController,
   getDashboardOverviewController,
   getAdminDashboardStatsController,
+  getDonationsByYearRangeController,
   updateUserController,
   deleteUserController,
 } from "./Admindashboard.controller.js";
@@ -27,6 +28,13 @@ router.get(
   verifyToken,
   adminMiddleware,
   getAdminDashboardStatsController
+);
+
+router.get(
+  "/donations",
+  verifyToken,
+  adminMiddleware,
+  getDonationsByYearRangeController
 );
 
 
