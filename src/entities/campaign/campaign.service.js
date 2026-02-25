@@ -189,7 +189,12 @@ export const createCampaignService = async ({
     });
   }
 
-  return campaign;
+  // Return campaign with creator details populated for immediate client use
+  const populatedCampaign = await Campaign.findById(campaign._id)
+    .populate("createdBy", "name email role studentId")
+    .lean();
+
+  return populatedCampaign;
 };
 
 

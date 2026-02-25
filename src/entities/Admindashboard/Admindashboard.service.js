@@ -69,6 +69,84 @@ export const getAdminDashboardStatsService = async () => {
 };
 
 /**
+ * Get paid donation totals per month within a year range
+ * @param {Number|String} startYear - Starting year (inclusive)
+ * @param {Number|String} endYear - Ending year (inclusive)
+ * @returns {Object} - Array of yearly month breakdowns
+ */
+export const getDonationsByYearRangeService = async (startYear, endYear) => {
+  const currentYear = new Date().getFullYear();
+  const parsedStartYear = parseInt(startYear, 10) || currentYear;
+  const parsedEndYear =
+    parseInt(endYear, 10) || parseInt(startYear, 10) || currentYear;
+
+  if (parsedStartYear > parsedEndYear) {
+    throw new Error("startYear cannot be greater than endYear");
+  }
+
+  const startDate = new Date(parsedStartYear, 0, 1);
+  const endDate = new Date(parsedEndYear + 1, 0, 1);
+
+  const monthlyAggregation = await Donation.aggregate([
+    {
+      $match: {
+        paymentStatus: "paid",
+        createdAt: {
+          $gte: startDate,
+          $lt: endDate,
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+        totalAmount: { $sum: "$amount" },
+      },
+    },
+    { $sort: { "_id.year": 1, "_id.month": 1 } },
+  ]);
+
+  const monthNames = [
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "may",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "oct",
+    "nov",
+    "dec",
+  ];
+
+  const years = {};
+  for (let year = parsedStartYear; year <= parsedEndYear; year++) {
+    years[year] = {
+      year,
+      months: monthNames.reduce(
+        (acc, month) => ({ ...acc, [month]: 0 }),
+        {}
+      ),
+    };
+  }
+
+  monthlyAggregation.forEach((entry) => {
+    const { year, month } = entry._id;
+    const monthKey = monthNames[month - 1];
+    if (years[year] && monthKey) {
+      years[year].months[monthKey] = entry.totalAmount;
+    }
+  });
+
+  return { years: Object.values(years) };
+};
+
+/**
  * Get all users with their campaign statistics
  * @param {Object} params - Query parameters
  * @param {Number} params.page - Page number
