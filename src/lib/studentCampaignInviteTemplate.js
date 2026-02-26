@@ -28,6 +28,7 @@ const studentCampaignInviteTemplate = ({
       <h3 style="margin-bottom:10px;">🔐 Your Login Credentials</h3>
       <p><strong>Email:</strong> ${email}</p>
       <p><strong>Password:</strong> ${password}</p>
+      <p><strong>Student ID:</strong> ${studentId}</p>
       `
           : `
       <hr style="margin:20px 0;" />
@@ -37,8 +38,7 @@ const studentCampaignInviteTemplate = ({
       `
       }
 
-      <p><strong>Student ID:</strong> ${studentId}</p>
-
+      
       <hr style="margin:20px 0;" />
 
       <h3 style="margin-bottom:10px;">💖 Your Fundraising Link</h3>
@@ -76,5 +76,6 @@ const studentCampaignInviteTemplate = ({
   </div>
   `;
 };
+
 
 export default studentCampaignInviteTemplate;

@@ -5,6 +5,7 @@ import Campaign from "../campaign/campaign.model.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+
 export const stripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
 
@@ -24,7 +25,6 @@ export const stripeWebhook = async (req, res) => {
   try {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-
       const donationId = session.metadata.donationId;
 
       const donation = await Donation.findById(donationId);
@@ -33,6 +33,7 @@ export const stripeWebhook = async (req, res) => {
         return res.status(404).send("Donation not found");
       }
 
+      // idempotency safety
       if (donation.paymentStatus === "paid") {
         return res.status(200).json({ received: true });
       }
@@ -41,22 +42,26 @@ export const stripeWebhook = async (req, res) => {
       donation.stripePaymentIntentId = session.payment_intent;
       await donation.save();
 
+      // Update campaign total 
       await Campaign.findByIdAndUpdate(
         donation.campaignId,
         { $inc: { totalRaised: donation.amount } }
       );
 
-      await Campaign.updateOne(
-        {
-          _id: donation.campaignId,
-          "students.studentId": donation.studentId
-        },
-        {
-          $inc: { "students.$.raisedAmount": donation.amount }
-        }
-      );
+      // Update student ONLY if referral donation
+      if (donation.studentId) {
+        await Campaign.updateOne(
+          {
+            _id: donation.campaignId,
+            "students.studentId": donation.studentId
+          },
+          {
+            $inc: { "students.$.raisedAmount": donation.amount }
+          }
+        );
+      }
 
-      console.log("✅ Donation processed successfully");
+      console.log("Donation processed successfully");
     }
 
     if (event.type === "checkout.session.async_payment_failed") {

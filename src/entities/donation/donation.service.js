@@ -5,32 +5,36 @@ import Donation from "./donation.model.js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+
 export const createDonationSessionService = async ({
   campaignId,
   studentId,
   donor,
   amount
 }) => {
-  if (!campaignId || !studentId || !donor || !amount) {
+  if (!campaignId || !donor || !amount) {
     throw new Error("Missing required fields");
   }
 
   const campaign = await Campaign.findById(campaignId);
   if (!campaign) throw new Error("Campaign not found");
 
-  const studentExists = campaign.students.find(
-    (s) => s.studentId === studentId
-  );
+  // If studentId exists → validate
+  if (studentId) {
+    const studentExists = campaign.students.find(
+      (s) => s.studentId === studentId
+    );
 
-  if (!studentExists) throw new Error("Student not found");
+    if (!studentExists) throw new Error("Student not found");
+  }
 
   if (!amount || amount <= 0)
     throw new Error("Invalid donation amount");
 
-  // Create donation record (pending)
+  // Create donation record
   const donation = await Donation.create({
     campaignId,
-    studentId,
+    studentId: studentId || null,
     donor,
     amount
   });
@@ -44,7 +48,9 @@ export const createDonationSessionService = async ({
           currency: "usd",
           product_data: {
             name: `Donation for ${campaign.name}`,
-            description: `Supporting student ${studentId}`
+            description: studentId
+              ? `Supporting student ${studentId}`
+              : `General campaign donation`
           },
           unit_amount: Math.round(amount * 100)
         },
@@ -54,7 +60,9 @@ export const createDonationSessionService = async ({
     success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.FRONTEND_URL}/cancel`,
     metadata: {
-      donationId: donation._id.toString()
+      donationId: donation._id.toString(),
+      campaignId: campaignId.toString(),
+      studentId: studentId || "guest"
     }
   });
 
@@ -63,6 +71,7 @@ export const createDonationSessionService = async ({
 
   return { url: session.url };
 };
+
 
 export const getAllDonationsService = async ({ page = 1, limit = 10 }) => {
   page = Number(page) || 1;
