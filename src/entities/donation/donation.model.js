@@ -13,7 +13,7 @@ const donationSchema = new Schema(
 
     studentId: {
       type: String,
-      required: true,
+      default: null,
       index: true
     },
 
@@ -55,7 +55,7 @@ const donationSchema = new Schema(
   { timestamps: true }
 );
 
-donationSchema.index({ campaignId: 1, studentId: 1 });
+donationSchema.index({ campaignId: 1, studentId: 1 }, { sparse: true });
 
 const Donation = mongoose.model("Donation", donationSchema);
 
