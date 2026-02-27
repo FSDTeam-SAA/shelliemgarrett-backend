@@ -242,17 +242,55 @@ export const getCampaignByIdService = async (campaignId) => {
     throw new Error("Campaign not found");
   }
 
-  const donations = await Donation.find({
-    campaignId,
-    paymentStatus: "paid",
-  })
-    .select("donor amount studentId createdAt")
-    .sort({ createdAt: -1 })
-    .lean();
+  const objectId = new mongoose.Types.ObjectId(campaignId);
+
+  const [donations, donorAggregates] = await Promise.all([
+    Donation.find({
+      campaignId,
+      paymentStatus: "paid",
+    })
+      .select("donor amount studentId createdAt")
+      .sort({ createdAt: -1 })
+      .lean(),
+    Donation.aggregate([
+      {
+        $match: {
+          campaignId: objectId,
+          paymentStatus: "paid",
+        },
+      },
+      {
+        $group: {
+          _id: "$donor.email",
+          name: { $first: "$donor.name" },
+          email: { $first: "$donor.email" },
+          mobile: { $first: "$donor.mobile" },
+          city: { $first: "$donor.city" },
+          country: { $first: "$donor.country" },
+          totalAmount: { $sum: "$amount" },
+          donationsCount: { $sum: 1 },
+          lastDonatedAt: { $max: "$createdAt" },
+        },
+      },
+      {
+        $sort: {
+          totalAmount: -1,
+          lastDonatedAt: -1,
+        },
+      },
+    ]),
+  ]);
+
+  const topDonors = donorAggregates.slice(0, 3);
 
   return {
     ...campaign,
     donations,
+    donorStats: {
+      totalDonors: donorAggregates.length,
+      donors: donorAggregates,
+      topDonors,
+    },
   };
 };
 
