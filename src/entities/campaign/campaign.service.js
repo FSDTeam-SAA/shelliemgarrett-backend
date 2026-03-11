@@ -283,17 +283,20 @@ export const getCampaignByIdService = async (campaignId) => {
   ]);
 
   const topDonors = donorAggregates.slice(0, 3);
+  const studentDonations = donations.filter((d) => d.studentId !== null);
+  const guestDonations = donations.filter((d) => d.studentId === null);
 
   return {
     ...campaign,
-    donations,
+    studentDonations,
+    guestDonations,
     donorStats: {
       totalDonors: donorAggregates.length,
-      donors: donorAggregates,
       topDonors,
     },
   };
 };
+
 
 export const updateCampaignService = async ({
   campaignId,
