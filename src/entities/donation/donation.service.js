@@ -78,7 +78,7 @@ export const getAllDonationsService = async ({ page = 1, limit = 10 }) => {
   limit = Number(limit) || 10;
   const skip = (page - 1) * limit;
 
-  const [donations, total] = await Promise.all([
+  const [donations, total, topDonors] = await Promise.all([
     Donation.find()
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -90,9 +90,25 @@ export const getAllDonationsService = async ({ page = 1, limit = 10 }) => {
       })
       .lean(),
     Donation.countDocuments(),
+    Donation.aggregate([
+      { $match: { paymentStatus: "paid" } },
+      {
+        $group: {
+          _id: "$donor.email",
+          name: { $first: "$donor.name" },
+          email: { $first: "$donor.email" },
+          totalAmount: { $sum: "$amount" },
+          donationsCount: { $sum: 1 },
+          lastDonatedAt: { $max: "$createdAt" },
+        },
+      },
+      { $sort: { totalAmount: -1 } },
+      { $limit: 3 },
+    ]),
   ]);
 
   return {
+    topDonors,
     donations,
     pagination: {
       total,
