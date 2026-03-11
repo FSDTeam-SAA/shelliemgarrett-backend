@@ -171,7 +171,7 @@ export const createCampaignService = async ({
   });
 
   for (const student of studentsForEmail) {
-    const donationLink = `${process.env.FRONTEND_URL}/donate/${campaign._id}/${student.studentId}`;
+    const donationLink = `${process.env.FRONTEND_URL}/donor-information?campaignId=${campaign._id}&studentId=${student.studentId}`;
 
     const htmlTemplate = studentCampaignInviteTemplate({
       name: student.name,
