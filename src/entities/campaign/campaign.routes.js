@@ -7,6 +7,7 @@ import {
   getCampaignByIdController,
   updateCampaignController,
   deleteCampaignController,
+  getMyDonations,
 } from "./campaign.controller.js";
 
 
@@ -25,6 +26,14 @@ router.post(
 );
 
 router.get("/", getAllCampaignsController);
+
+router.get(
+  "/my-donations",
+  verifyToken,
+  getMyDonations
+);
+
+
 router.get("/:id", getCampaignByIdController);
 router.put(
   "/:id",
@@ -42,6 +51,9 @@ router.delete(
   adminMiddleware,
   deleteCampaignController
 );
+
+
+
 
 
 
