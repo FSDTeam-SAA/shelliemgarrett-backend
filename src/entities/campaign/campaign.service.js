@@ -7,6 +7,7 @@ import Donation from "../donation/donation.model.js";
 import sendEmail from "../../lib/sendEmail.js";
 import studentCampaignInviteTemplate from "../../lib/studentCampaignInviteTemplate.js";
 import mongoose from "mongoose";
+import { createPaginationInfo } from "../../lib/pagination.js";
 
 
 const generatePassword = (length = 8) => {
@@ -472,3 +473,87 @@ export const deleteCampaignService = async (campaignId) => {
 
   return true;
 };
+
+
+export const getMyDonationsService = async ({ email, page, limit }) => {
+
+  const skip = (page - 1) * limit;
+
+  // Find campaigns where user is a student
+  const campaigns = await Campaign.find(
+    { "students.email": email },
+    { students: 1 }
+  ).lean();
+
+  if (!campaigns.length) {
+    return {
+      pagination: createPaginationInfo(page, limit, 0),
+      campaigns: []
+    };
+  }
+
+  const campaignIds = campaigns.map(c => c._id);
+
+  // extract studentIds
+  const studentIds = [];
+
+  campaigns.forEach(campaign => {
+    campaign.students.forEach(student => {
+      if (student.email === email && student.studentId) {
+        studentIds.push(student.studentId);
+      }
+    });
+  });
+
+  const stats = await Donation.aggregate([
+    {
+      $match: {
+        campaignId: { $in: campaignIds },
+        studentId: { $in: studentIds },
+        paymentStatus: "paid"
+      }
+    },
+
+    // group donations by campaign
+    {
+      $group: {
+        _id: "$campaignId",
+        totalRaised: { $sum: "$amount" },
+        donors: { $addToSet: "$donor.email" }
+      }
+    },
+
+    // join campaign collection
+    {
+      $lookup: {
+        from: "campaigns",
+        localField: "_id",
+        foreignField: "_id",
+        as: "campaign"
+      }
+    },
+
+    { $unwind: "$campaign" },
+
+    {
+      $project: {
+        campaignId: "$_id",
+        campaignTitle: "$campaign.name",
+        totalRaised: 1,
+        totalDonors: { $size: "$donors" }
+      }
+    },
+
+    { $skip: skip },
+    { $limit: limit }
+  ]);
+
+  const pagination = createPaginationInfo(page, limit, stats.length);
+
+  return {
+    pagination,
+    campaigns: stats
+  };
+};
+
+

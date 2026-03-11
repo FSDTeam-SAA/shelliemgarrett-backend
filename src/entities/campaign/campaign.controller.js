@@ -5,6 +5,7 @@ import {
   getCampaignByIdService,
   updateCampaignService,
   deleteCampaignService,
+  getMyDonationsService,
 } from "./campaign.service.js";
 
 
@@ -108,6 +109,25 @@ export const getCampaignByIdController = async (req, res, next) => {
       "Campaign fetched successfully",
       data
     );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyDonations = async (req, res, next) => {
+  try {
+    const email = req.user.email;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+
+    const data = await getMyDonationsService({
+      email,
+      page,
+      limit
+    });
+
+    generateResponse(res, 200, true, "My campaign donations fetched", data);
   } catch (error) {
     next(error);
   }
