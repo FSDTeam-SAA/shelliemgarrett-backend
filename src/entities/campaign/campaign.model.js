@@ -53,8 +53,8 @@ const campaignSchema = new Schema(
       default: 0
     },
     raiseGoal: {
-      type: String,
-      default: ""
+      type: Number,
+      default: 0
     },
     createdBy: {
       type: Schema.Types.ObjectId,
