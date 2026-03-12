@@ -165,7 +165,7 @@ export const createCampaignService = async ({
   const campaign = await Campaign.create({
     name: name.trim(),
     description: description.trim(),
-    raiseGoal: raiseGoal?.toString?.().trim?.() || "",
+    raiseGoal,
     media: uploadedMedia,
     students,
     createdBy,
