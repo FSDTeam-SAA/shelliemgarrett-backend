@@ -21,6 +21,7 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     username: { type: String },
     dob: { type: Date, default: null },
+    phone: { type: String, default: '' },
     gender: {
       type: String,
       enum: ['male', 'female', 'other'],
@@ -33,7 +34,7 @@ const UserSchema = new mongoose.Schema(
       enum: [RoleType.USER, RoleType.ADMIN],
     },
 
-       // Student ID for campaign tracking
+    // Student ID for campaign tracking
     studentId: {
       type: String,
       unique: true,
