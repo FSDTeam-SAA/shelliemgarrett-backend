@@ -309,6 +309,12 @@ export const updateCampaignService = async ({
     throw new Error("Invalid campaign ID");
   }
 
+  // Fetch existing campaign first to check existing students
+  const existingCampaign = await Campaign.findById(campaignId).lean();
+  if (!existingCampaign) {
+    throw new Error("Campaign not found");
+  }
+
   const updatePayload = {};
 
   if (name?.trim()) updatePayload.name = name.trim();
@@ -319,9 +325,14 @@ export const updateCampaignService = async ({
   }
 
   const uploadedMedia = [];
-  const students = [];
-  const studentsForEmail = [];
+  const newStudents = [];        
+  const studentsForEmail = [];   
   const emailSet = new Set();
+
+  // Build a set of emails already in this campaign
+  const existingCampaignEmailSet = new Set(
+    existingCampaign.students.map((s) => s.email.toLowerCase().trim())
+  );
 
   if (files?.media?.length) {
     for (const file of files.media) {
@@ -332,7 +343,10 @@ export const updateCampaignService = async ({
       );
 
       if (result?.secure_url) {
-        uploadedMedia.push({ url: result.secure_url, public_id: result.public_id });
+        uploadedMedia.push({
+          url: result.secure_url,
+          public_id: result.public_id,
+        });
       }
     }
   }
@@ -352,42 +366,47 @@ export const updateCampaignService = async ({
         if (!email || !nameValue) continue;
 
         const normalizedEmail = String(email).toLowerCase().trim();
+
+        // Skip duplicates within the uploaded Excel file itself
         if (emailSet.has(normalizedEmail)) continue;
         emailSet.add(normalizedEmail);
 
+        // Skip students already in this campaign — they stay untouched
+        if (existingCampaignEmailSet.has(normalizedEmail)) continue;
+
         const others = { ...row };
-        delete others.email; delete others.Email; delete others.EMAIL;
-        delete others.name; delete others.Name; delete others.NAME;
+        delete others.email;  delete others.Email;  delete others.EMAIL;
+        delete others.name;   delete others.Name;   delete others.NAME;
 
         let user = await User.findOne({ email: normalizedEmail });
         let plainPassword = null;
         let studentId;
 
         if (!user) {
-  // New student - create with studentId
-  plainPassword = generatePassword(8);
-  studentId = await generateUniqueStudentIdFromDB();
-  
-  user = await User.create({
-    name: String(nameValue).trim(),
-    email: normalizedEmail,
-    password: plainPassword,
-    role: "USER",
-    isVerified: true,
-    studentId,
-  });
-} else {
-  studentId = user.studentId;
-  
-  
-  if (!studentId) {
-    studentId = await generateUniqueStudentIdFromDB();
-    user.studentId = studentId;
-    await user.save();
-  }
-}
+          // Brand new user — create account + send credentials + donation link
+          plainPassword = generatePassword(8);
+          studentId = await generateUniqueStudentIdFromDB();
 
-        students.push({
+          user = await User.create({
+            name: String(nameValue).trim(),
+            email: normalizedEmail,
+            password: plainPassword,
+            role: "USER",
+            isVerified: true,
+            studentId,
+          });
+        } else {
+          // Existing user, new to THIS campaign — send donation link only (no password)
+          studentId = user.studentId;
+
+          if (!studentId) {
+            studentId = await generateUniqueStudentIdFromDB();
+            user.studentId = studentId;
+            await user.save();
+          }
+        }
+
+        newStudents.push({
           studentId,
           name: String(nameValue).trim(),
           email: normalizedEmail,
@@ -397,7 +416,7 @@ export const updateCampaignService = async ({
         studentsForEmail.push({
           name: String(nameValue).trim(),
           email: normalizedEmail,
-          password: plainPassword,
+          password: plainPassword, 
           studentId,
         });
       }
@@ -408,6 +427,7 @@ export const updateCampaignService = async ({
     }
   }
 
+  // Build update operations
   const updateOps = {};
 
   if (Object.keys(updatePayload).length) {
@@ -419,9 +439,9 @@ export const updateCampaignService = async ({
     updateOps.$push.media = { $each: uploadedMedia };
   }
 
-  if (students.length) {
+  if (newStudents.length) {
     updateOps.$push = updateOps.$push || {};
-    updateOps.$push.students = { $each: students };
+    updateOps.$push.students = { $each: newStudents };
   }
 
   if (!Object.keys(updateOps).length) {
@@ -440,13 +460,15 @@ export const updateCampaignService = async ({
     throw new Error("Campaign not found");
   }
 
+  // Send emails only to newly added students
   if (studentsForEmail.length) {
     for (const student of studentsForEmail) {
-      const donationLink = `${process.env.FRONTEND_URL}/donate/${campaign._id}/${student.studentId}`;
+      const donationLink = `${process.env.FRONTEND_URL}/donor-information?campaignId=${campaign._id}&studentId=${student.studentId}`;
+
       const htmlTemplate = studentCampaignInviteTemplate({
         name: student.name,
         email: student.email,
-        password: student.password,
+        password: student.password,   
         studentId: student.studentId,
         campaignName: campaign.name,
         donationLink,
@@ -462,6 +484,7 @@ export const updateCampaignService = async ({
 
   return campaign;
 };
+
 
 export const deleteCampaignService = async (campaignId) => {
   if (!mongoose.Types.ObjectId.isValid(campaignId)) {

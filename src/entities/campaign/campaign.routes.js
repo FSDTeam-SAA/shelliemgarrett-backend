@@ -35,6 +35,7 @@ router.get(
 
 
 router.get("/:id", getCampaignByIdController);
+
 router.put(
   "/:id",
   verifyToken,
@@ -45,6 +46,8 @@ router.put(
   ]),
   updateCampaignController
 );
+
+
 router.delete(
   "/:id",
   verifyToken,

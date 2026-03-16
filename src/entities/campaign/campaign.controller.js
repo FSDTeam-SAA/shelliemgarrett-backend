@@ -33,6 +33,7 @@ export const createCampaignController = async (req, res, next) => {
   }
 };
 
+
 export const updateCampaignController = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -57,6 +58,7 @@ export const updateCampaignController = async (req, res, next) => {
     next(error);
   }
 };
+
 
 export const deleteCampaignController = async (req, res, next) => {
   try {
